@@ -1,3 +1,6 @@
+from datetime import date
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models, transaction
@@ -61,6 +64,13 @@ class PersonalInfo(AuditModel):
     def __str__(self):
         return self.full_name
 
+    def get_age(self):
+        """Calculate age from date_of_birth"""
+        today = date.today()
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
 
 class ContactInfo(AuditModel):
     RESIDENTIAL_STATUS_CHOICES = [
@@ -78,7 +88,7 @@ class ContactInfo(AuditModel):
         message='NRIC/FIN must start with S, T, F, or G followed by 7 digits and an alphabet.'
     )
     # pass_type_others = models.CharField(blank=True, null=True, max_length=100)
-    nric_fin = models.CharField(max_length=255)
+    nric_fin = models.CharField(max_length=255, validators=[nric_fin_validator])
     primary_contact = models.CharField(max_length=25, null=True)
     secondary_contact = models.CharField(max_length=25, null=True, blank=True)
     residential_status = models.CharField(max_length=255, choices=RESIDENTIAL_STATUS_CHOICES, null=True, blank=True)
@@ -151,17 +161,52 @@ class Membership(AuditModel):
             if not type(self).objects.filter(reference_no=ref_no).exists():
                 return ref_no
 
+    def generate_membership_number(self):
+        """Generate membership number when approved"""
+        if self.membership_number:
+            return self.membership_number
+
+        year = timezone.now().year
+        membership_type_code = self.membership_type.type_code.upper()[:2] if self.membership_type else "OR"
+
+        # Count existing approved memberships for this year and type
+        count = Membership.objects.filter(
+            membership_number__isnull=False,
+            membership_number__startswith=f"{membership_type_code}{year}"
+        ).count() + 1
+
+        self.membership_number = f"{membership_type_code}{year}{count:04d}"
+        return self.membership_number
+
+    def calculate_membership_fee(self):
+        """Calculate membership fee based on age and membership type"""
+        if not self.membership_type or not self.profile_info:
+            return Decimal('0.00')
+
+        base_amount = self.membership_type.amount
+        age = self.profile_info.get_age()
+
+        # 50% discount for members aged 60+ or 18 and below
+        if age >= 60 or age <= 18:
+            return base_amount / 2
+
+        return base_amount
+
     def transition(self, new_status, *, reason: str | None = None, actor=None, save_membership: bool = True):
         """
         Transition to a new Status (instance or status_code str).
         Always writes WorkflowLog with given reason/actor.
         """
-        from memberships.models import Status, WorkflowLog
-
         if isinstance(new_status, str):
             new_status = Status.objects.get(status_code=new_status)
 
         with transaction.atomic():
+            old_status = self.workflow_status
+
+            # Generate membership number when approved
+            if new_status.status_code == "13":  # Approved
+                self.generate_membership_number()
+
             self.workflow_status = new_status
             if reason is not None:
                 self.reason = reason
@@ -173,14 +218,15 @@ class Membership(AuditModel):
 
             WorkflowLog.objects.create(
                 membership=self,
-                workflow_status=new_status,
+                old_status=old_status,
+                new_status=new_status,
                 action_by=actor,
                 reason=reason,
             )
         return self
 
     def __str__(self):
-        return self.user.username
+        return f"{self.user.username} - {self.reference_no}"
 
 
 class MembershipPayment(AuditModel):
@@ -189,13 +235,20 @@ class MembershipPayment(AuditModel):
         ("bank_transfer", "Bank Transfer"),
         ("cash", "Cash"),
     )
+    STATUS_CHOICES = (
+        ("created", "Created"),
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("failed", "Failed"),
+        ("cancelled", "Cancelled"),
+    )
 
-    membership = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True)
+    membership = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True, related_name='payments')
     method = models.CharField(max_length=32, choices=METHOD_CHOICES)
     provider = models.CharField(max_length=32, blank=True, null=True)  # e.g., 'hitpay' for online
-    status = models.ForeignKey(Status, on_delete=models.SET_NULL, blank=True, null=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="created")
 
-    receipt_no = models.CharField(max_length=10, unique=True, editable=False)
+    receipt_no = models.CharField(max_length=15, unique=True, editable=False)
 
     # identifiers
     external_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)  # provider payment id
@@ -246,10 +299,13 @@ class PaymentLog(AuditModel):
 
 class WorkflowLog(AuditModel):
     membership = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True)
-    workflow_status = models.ForeignKey(Status, on_delete=models.SET_NULL, blank=True, null=True)
+    old_status = models.ForeignKey(Status, on_delete=models.SET_NULL, blank=True, null=True,
+                                   related_name='old_workflow_logs')
+    new_status = models.ForeignKey(Status, on_delete=models.SET_NULL, blank=True, null=True,
+                                   related_name='new_workflow_logs')
     action_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
     action_time = models.DateTimeField(auto_now=True)
     reason = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.action_by} - {self.action_time}"
+        return f"{self.action_by} - {self.action_time} - {self.old_status} -> {self.new_status}"
