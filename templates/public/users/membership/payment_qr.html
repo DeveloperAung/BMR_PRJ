@@ -1,0 +1,10 @@
+<h3>Scan to Pay (Sandbox)</h3>
+{{ qr_img }} - QR code
+{% if qr_img %}
+<img src="data:image/png;base64,{{ qr_img }}" alt="QR Code">
+<p>Or <a href="{{ url }}" target="_blank">click here to pay</a></p>
+{% elif error %}
+<pre>{{ error }}</pre>
+{% else %}
+<p>Generating QR...</p>
+{% endif %}

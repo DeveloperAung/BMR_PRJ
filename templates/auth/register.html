@@ -1,0 +1,70 @@
+<!-- filepath: /Users/aungkhant/Projects/Python/BMR/templates/auth/register.html -->
+{% extends "public/base.html" %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 400px;">
+    <h2 class="mb-4 text-center">Register</h2>
+    
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" 
+                   pattern="^[a-zA-Z0-9]*$" required>
+            <small class="text-muted">Letters and numbers only, no spaces or special characters.</small>
+            {% if form.username.errors %}
+                <div class="invalid-feedback d-block">{{ form.username.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+            {% if form.email.errors %}
+                <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="password1" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password1" name="password1" required>
+            {% if form.password1.errors %}
+                <div class="invalid-feedback d-block">{{ form.password1.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="password2" class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" id="password2" name="password2" required>
+            {% if form.password2.errors %}
+                <div class="invalid-feedback d-block">{{ form.password2.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100">Register</button>
+    </form>
+    
+    <div class="text-center mt-3">
+        <p>Already have an account? <a href="{% url 'login' %}">Login</a></p>
+        <p>Or</p>
+        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-outline-danger">
+            <i class="fab fa-google me-2"></i> Continue with Google
+        </a>
+    </div>
+</div>
+
+<!-- Add client-side validation -->
+<script>
+document.getElementById('username').addEventListener('input', function(e) {
+    const value = e.target.value;
+    const isValid = /^[a-zA-Z0-9]*$/.test(value);
+    
+    if (!isValid) {
+        this.setCustomValidity('Username can only contain letters and numbers');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,121 @@
+<script>
+    function validateNRICFIN(nric) {
+    // First character must be S, T, F or G
+    // Followed by 7 numbers and a letter
+    const nricRegex = /^[STFG]\d{7}[A-Z]$/;
+    
+    if (!nricRegex.test(nric)) {
+        return {
+            isValid: false,
+            message: 'Invalid NRIC/FIN format. Must start with S, T, F or G, followed by 7 numbers and end with a letter'
+        };
+    }
+
+    // Weight factors for each digit position
+    const weights = [2, 7, 6, 5, 4, 3, 2];
+    
+    // Check digits for different NRIC/FIN types
+    const checkDigits = {
+        'S': ['J', 'Z', 'I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'],
+        'T': ['G', 'F', 'E', 'D', 'C', 'B', 'A', 'J', 'Z', 'I', 'H'],
+        'F': ['X', 'W', 'U', 'T', 'R', 'Q', 'P', 'N', 'M', 'L', 'K'],
+        'G': ['R', 'Q', 'P', 'N', 'M', 'L', 'K', 'X', 'W', 'U', 'T']
+    };
+
+    const firstChar = nric.charAt(0);
+    const numbers = nric.substr(1, 7);
+    const checkDigit = nric.charAt(8);
+
+    // Calculate sum of weighted digits
+    let sum = 0;
+    for (let i = 0; i < 7; i++) {
+        sum += parseInt(numbers[i]) * weights[i];
+    }
+
+    // Add offset based on NRIC/FIN type
+    if (firstChar === 'T' || firstChar === 'G') {
+        sum += 4;
+    }
+
+    const remainder = sum % 11;
+    const calculatedCheckDigit = checkDigits[firstChar][remainder];
+
+    if (checkDigit !== calculatedCheckDigit) {
+        return {
+            isValid: false,
+            message: 'Invalid NRIC/FIN check digit'
+        };
+    }
+
+    return {
+        isValid: true,
+        message: ''
+    };
+}
+
+// Update the validateStep function to include NRIC/FIN validation
+const originalValidateStep = validateStep;
+validateStep = function(stepNumber) {
+    const isValid = originalValidateStep(stepNumber);
+    
+    if (stepNumber === 2) {
+        const nricInput = document.getElementById('nric_fin');
+        const nricValue = nricInput.value.toUpperCase();
+        nricInput.value = nricValue; // Convert input to uppercase
+        
+        if (nricValue) {
+            const validation = validateNRICFIN(nricValue);
+            if (!validation.isValid) {
+                nricInput.classList.add('is-invalid');
+                const feedback = nricInput.nextElementSibling;
+                if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                    const message = document.createElement('div');
+                    message.className = 'invalid-feedback';
+                    message.textContent = validation.message;
+                    nricInput.parentNode.insertBefore(message, nricInput.nextSibling);
+                } else {
+                    feedback.textContent = validation.message;
+                }
+                return false;
+            } else {
+                nricInput.classList.remove('is-invalid');
+                const feedback = nricInput.nextElementSibling;
+                if (feedback && feedback.classList.contains('invalid-feedback')) {
+                    feedback.remove();
+                }
+            }
+        }
+    }
+    
+    return isValid;
+};
+
+// Add real-time validation
+document.getElementById('nric_fin').addEventListener('input', function(e) {
+    const input = e.target;
+    const value = input.value.toUpperCase();
+    input.value = value; // Convert input to uppercase
+    
+    if (value) {
+        const validation = validateNRICFIN(value);
+        if (!validation.isValid) {
+            input.classList.add('is-invalid');
+            const feedback = input.nextElementSibling;
+            if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                const message = document.createElement('div');
+                message.className = 'invalid-feedback';
+                message.textContent = validation.message;
+                input.parentNode.insertBefore(message, input.nextSibling);
+            } else {
+                feedback.textContent = validation.message;
+            }
+        } else {
+            input.classList.remove('is-invalid');
+            const feedback = input.nextElementSibling;
+            if (feedback && feedback.classList.contains('invalid-feedback')) {
+                feedback.remove();
+            }
+        }
+    }
+});
+  </script>

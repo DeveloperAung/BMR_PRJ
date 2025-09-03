@@ -1,0 +1,738 @@
+{% extends 'public/base.html' %}
+{% load static %}
+{% block content %}
+<!-- Membership Registration Wizard -->
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header text-center">
+          <h3>Membership Registration</h3>
+          <div id="wizard-progress" class="my-3">
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: 20%" id="wizard-progress-bar"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+              <small>Personal Info</small>
+              <small>Contact</small>
+              <small>Education</small>
+              <small>Work</small>
+              <small>Payment</small>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="membership-wizard-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <!-- Step 1: Personal Info and Membership Type -->
+            <div class="wizard-step" id="step-1">
+              <h5 class="mb-3">Personal Info & Membership Type</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="name" name="name" min="5" value="{{ initial_data.profile_info.name }}" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="gender" class="form-label">Gender <span class="text-danger">*</span></label>
+                  <select class="form-select" id="gender" name="gender" required>
+                    {{ gender_choices }}
+                    <option value="">Select</option>
+                    {% for code, name in gender_choices %}
+                        <option value="{{ code }}" {% if code == initial_data.profile_info.gender %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                  </select> 
+                </div>
+                <div class="col-md-6">
+                  <label for="date_of_birth" class="form-label">Date of Birth <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" value="{{ initial_data.profile_info.date_of_birth }}" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="city_of_birth" class="form-label">City of Birth</label>
+                  <input type="text" class="form-control" id="city_of_birth" name="city_of_birth" value="{{ initial_data.profile_info.city_of_birth }}">
+                </div>
+                <div class="col-md-6">
+                  <label for="country_of_birth" class="form-label">Country of Birth <span class="text-danger">*</span></label>
+                  <select class="form-select" id="country_of_birth" name="country_of_birth" required>
+                    <option value="">Select Country</option>
+                    {% for code, name in countries %}
+                      <option value="{{ code }}" {% if code == initial_data.profile_info.country_of_birth %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="citizenship" class="form-label">Citizenship <span class="text-danger">*</span></label>
+                  <select class="form-select" id="citizenship" name="citizenship" required>
+                    <option value="">Select Citizenship</option>
+                    {% for code, name in citizenships %}
+                      <option value="{{ code }}" {% if code == initial_data.profile_info.citizenship %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="membership_type" class="form-label">Membership Type <span class="text-danger">*</span></label>
+                  <select class="form-select" id="membership_type" name="membership_type" required>
+                    <option value="">Select Membership Type</option>
+                    {% for type in membership_types %}
+                        <option value="{{ type.id }}" 
+                                {% if initial_data.membership_type is not None and type.id|stringformat:"s" == initial_data.membership_type|stringformat:"s" %}
+                                    selected
+                                {% endif %}>
+                            {{ type.name }} - ${{ type.amount }}
+                        </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="profile_picture" class="form-label">Profile Picture <span class="text-danger">*</span></label>
+                  <div class="mb-2">
+                      <img id="profile_picture_preview" 
+                           src="{% if initial_data.profile_picture %}{{ initial_data.profile_picture }}{% endif %}" 
+                           alt="Profile Preview" 
+                           class="img-thumbnail" 
+                           style="max-width: 150px;" {% if not initial_data.profile_picture %}display: none;{% endif %}>
+                  </div>
+                  <input type="file" 
+                         class="form-control" 
+                         id="profile_picture" 
+                         name="profile_picture" 
+                         accept="image/*"
+                         {% if not initial_data.profile_picture %}required{% endif %}>
+                  <div class="form-text">
+                      {% if initial_data.profile_picture %}
+                      Current profile picture shown above. Upload new one to change.
+                      {% else %}
+                      Please upload a profile picture (max 2MB).
+                      {% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-end mt-4">
+                <button type="button" class="btn btn-primary" id="step1-next">Continue</button>
+              </div>
+            </div>
+
+            <!-- Step 2: Contact Info -->
+            <div class="wizard-step d-none" id="step-2">
+              <h5 class="mb-3">Contact Info</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="nric_fin" class="form-label">NRIC/FIN <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="nric_fin" name="nric_fin" value="{{ initial_data.contact_info.nric_fin }}" required>
+                </div>
+                
+                <div class="col-md-6">
+                  <label for="mobile-input" class="form-label">Primary Contact <span class="text-danger">*</span></label>
+                  <input type="tel"
+                         class="form-control"
+                         id="mobile-input"
+                         name="mobile"
+                         value="{{ initial_data.contact_info.primary_contact }}"
+                         required>
+                  <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="col-md-6">
+                  <label for="mobile-secondary-input" class="form-label">Secondary Contact</label>
+                  <input type="tel"
+                         class="form-control"
+                         id="mobile-secondary-input"
+                         name="secondary_contact"
+                         value="{{ initial_data.contact_info.secondary_contact }}">
+                  <div class="invalid-feedback"></div>
+                </div>
+                <div class="col-md-6">
+                  <label for="resendial_status" class="form-label">Residential Status <span class="text-danger">*</span></label>
+                  <select class="form-select" id="resendial_status" name="resendial_status" required>
+                    <option value="">Select Status</option>
+                    {% for code, name in resendial_statuses %}
+                      <option value="{{ code }}" {% if code == initial_data.contact_info.resendial_status %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                
+                <div class="col-md-6">
+                  <label for="postal_code" class="form-label">Postal Code <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="postal_code" name="postal_code" value="{{ initial_data.contact_info.postal_code }}"" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
+                  <textarea class="form-control" id="address" name="address" rows="2" required>{{ initial_data.contact_info.address }}</textarea>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" id="step2-prev">Previous</button>
+                <button type="button" class="btn btn-primary" id="step2-next">Continue</button>
+              </div>
+            </div>
+
+            <!-- Step 3: Education Info -->
+            <div class="wizard-step d-none" id="step-3">
+              <h5 class="mb-3">Education Info</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="education" class="form-label">Education Level <span class="text-danger">*</span></label>
+                  <select class="form-select" id="education" name="education" required>
+                    <option value="">Select Education Level</option>
+                    {% for level in educations %}
+                      <option value="{{ level.id }}" {% if level.id|stringformat:"s" == initial_data.education_info.education|stringformat:"s" %}selected{% endif %}>{{ level.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label for="institution" class="form-label">Institution</label>
+                  <select class="form-select" id="institution" name="institution">
+                    <option value="">Select Institution</option>
+                    {% for institution in institutions %}
+                      <option value="{{ institution.id }}" {% if institution.id|stringformat:"s" == initial_data.education_info.institution|stringformat:"s" %}selected{% endif %}>{{ institution.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label for="other_societies" class="form-label">Other Societies</label>
+                  <textarea class="form-control" id="other_societies" name="other_societies" rows="2"></textarea>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" id="step3-prev">Previous</button>
+                <button type="button" class="btn btn-primary" id="step3-next">Continue</button>
+              </div>
+            </div>
+
+            <!-- Step 4: Work Info -->
+            <div class="wizard-step d-none" id="step-4">
+              <h5 class="mb-3">Work Info</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="occupation" class="form-label">Occupation <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="occupation" name="occupation" value="{{ initial_data.work_info.occupation }}" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="company_name" class="form-label">Company Name</label>
+                  <input type="text" class="form-control" id="company_name" name="company_name" value="{{ initial_data.work_info.company_name }}">
+                </div>
+                <div class="col-md-6">
+                  <label for="company_contact" class="form-label">Company Contact</label>
+                  <input type="text" class="form-control" id="company_contact" name="company_contact" value="{{ initial_data.work_info.company_contact }}">
+                </div>
+                <div class="col-md-6">
+                  <label for="company_postal_code" class="form-label">Company Postal Code</label>
+                  <input type="text" class="form-control" id="company_postal_code" name="company_postal_code" value="{{ initial_data.work_info.company_postal_code }}">
+                </div>
+                <div class="col-md-12">
+                  <label for="company_address" class="form-label">Company Address</label>
+                  <textarea class="form-control" id="company_address" name="company_address" rows="2">{{ initial_data.work_info.company_address }}</textarea>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" id="step4-prev">Previous</button>
+                <button type="button" class="btn btn-primary" id="step4-next">Continue</button>
+              </div>
+            </div>
+
+            <!-- Step 5: Payment & Success -->
+            <div class="wizard-step d-none" id="step-5">
+              <h5 class="mb-3">Payment</h5>
+              <div id="payment-content">
+                <div class="text-center">
+                  <h3>Scan to Pay (Sandbox)</h3>
+                  <div id="qr-code-container" class="my-4">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Generating QR Code...</span>
+                    </div>
+                    <p class="mt-2">Generating QR Code...</p>
+                  </div>
+                  <div id="payment-links" class="mt-3" style="display: none;">
+                    <p>Or <a href="#" id="payment-url" target="_blank" class="btn btn-primary">Click here to pay</a></p>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="regenerate-qr">
+                      <i class="fas fa-refresh"></i> Regenerate QR Code
+                    </button>
+                  </div>
+                  <div id="payment-error" class="alert alert-danger mt-3" style="display: none;">
+                    <strong>Payment Error:</strong> <span id="error-message"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" id="step5-prev">Previous</button>
+                <button type="submit" class="btn btn-success" id="submit-registration">Submit Registration</button>
+              </div>
+              <div class="d-none mt-4 text-center" id="registration-success">
+                <img src="/static/assets/images/gif/success/successful.gif" alt="Success" style="max-width:120px;">
+                <h4 class="mt-3">Registration Successful!</h4>
+                <p>Your reference number: <span id="success-reference-no"></span></p>
+                <a href="/" class="btn btn-primary mt-2">Go to Home</a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+{% include 'partials/_js/mobile-input.html' %}
+{% include 'public/users/membership/_js/profile-preview-validation.html' %}
+{% endblock extra_js %}
+
+<script>
+// Add getCookie function at the start
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+let currentStep = 1;
+const totalSteps = 5;
+
+function showStep(step) {
+  document.querySelectorAll('.wizard-step').forEach((el, idx) => {
+    el.classList.toggle('d-none', idx !== step - 1);
+  });
+  document.getElementById('wizard-progress-bar').style.width = (step * 20) + '%';
+  
+  // If showing step 5, check if we have QR code data stored
+  if (step === 5) {
+    const qrData = sessionStorage.getItem('qrCodeData');
+    if (qrData) {
+      try {
+        const parsedData = JSON.parse(qrData);
+        if (parsedData.qr_img) {
+          displayQRCode(parsedData.qr_img, parsedData.url);
+        }
+      } catch (e) {
+        console.error('Error parsing stored QR data:', e);
+      }
+    }
+  }
+}
+
+function validateStep(stepNumber) {
+  const stepElement = document.getElementById(`step-${stepNumber}`);
+  const requiredFields = stepElement.querySelectorAll('[required]');
+  let isValid = true;
+  
+  // Clear previous validation styling
+  requiredFields.forEach(field => {
+    if (!field.value.trim()) {
+      field.classList.add('is-invalid');
+      // Add invalid feedback message
+      const feedback = field.nextElementSibling;
+      if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+        const message = document.createElement('div');
+        message.className = 'invalid-feedback';
+        message.textContent = 'This field is required';
+        field.parentNode.insertBefore(message, field.nextSibling);
+      }
+      isValid = false;
+    } else {
+      field.classList.remove('is-invalid');
+      const feedback = field.nextElementSibling;
+      if (feedback && feedback.classList.contains('invalid-feedback')) {
+        feedback.remove();
+      }
+    }
+  });
+
+  return isValid;
+}
+
+const dateOfBirth = document.getElementById('date_of_birth');
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+dateOfBirth.max = yesterday.toISOString().split('T')[0];
+
+// Enhance the validateStep function to check profile picture and date of birth
+const originalValidateStep = validateStep;
+validateStep = function(stepNumber) {
+  const isValid = originalValidateStep(stepNumber);
+  
+  if (stepNumber === 1) {
+    const profilePicture = document.getElementById('profile_picture');
+    const profilePreview = document.getElementById('profile_picture_preview');
+    const initialImage = profilePreview.getAttribute('src');
+    
+    // Only require new picture if there's no existing one
+    if (!initialImage && (!profilePicture.files || !profilePicture.files[0])) {
+        profilePicture.classList.add('is-invalid');
+        const feedback = profilePicture.nextElementSibling;
+        if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+            const message = document.createElement('div');
+            message.className = 'invalid-feedback';
+            message.textContent = 'Profile picture is required';
+            profilePicture.parentNode.insertBefore(message, profilePicture.nextSibling);
+        }
+        return false;
+    }
+    
+    // If a new file is selected, validate it
+    if (profilePicture.files && profilePicture.files[0]) {
+        const file = profilePicture.files[0];
+        
+        // Validate file type
+        if (!file.type.match('image.*')) {
+            profilePicture.classList.add('is-invalid');
+            const message = document.createElement('div');
+            message.className = 'invalid-feedback';
+            message.textContent = 'Please select a valid image file';
+            profilePicture.parentNode.insertBefore(message, profilePicture.nextSibling);
+            return false;
+        }
+        
+        // Validate file size
+        if (file.size > 2 * 1024 * 1024) {
+            profilePicture.classList.add('is-invalid');
+            const message = document.createElement('div');
+            message.className = 'invalid-feedback';
+            message.textContent = 'Image size should be less than 2MB';
+            profilePicture.parentNode.insertBefore(message, profilePicture.nextSibling);
+            return false;
+        }
+    }
+    
+    // Clear any previous validation errors if validation passes
+    profilePicture.classList.remove('is-invalid');
+    const feedback = profilePicture.nextElementSibling;
+    if (feedback && feedback.classList.contains('invalid-feedback')) {
+        feedback.remove();
+    }
+
+    const dateOfBirth = document.getElementById('date_of_birth');
+    const selectedDate = new Date(dateOfBirth.value);
+    const today = new Date();
+    
+    if (selectedDate >= today) {
+      dateOfBirth.classList.add('is-invalid');
+      const feedback = dateOfBirth.nextElementSibling;
+      if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+        const message = document.createElement('div');
+        message.className = 'invalid-feedback';
+        message.textContent = 'Date of birth cannot be today or a future date';
+        dateOfBirth.parentNode.insertBefore(message, dateOfBirth.nextSibling);
+      }
+      return false;
+    }
+  }
+  
+  return isValid;
+}
+
+
+// Replace the existing saveStepData function with this enhanced version:
+async function saveStepData(stepNumber) {
+  const stepElement = document.getElementById(`step-${stepNumber}`);
+  const formData = new FormData();
+  
+  // Add loading state
+  const nextButton = document.getElementById(`step${stepNumber}-next`);
+  nextButton.disabled = true;
+  nextButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+  
+  try {
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    // Collect form data
+    const inputs = stepElement.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      if (input.type === 'file' && input.files[0]) {
+        formData.append(input.name, input.files[0]);
+      } else {
+        formData.append(input.name, input.value);
+      }
+    });
+
+    const response = await fetch(`/api/membership/register/step${stepNumber}/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': csrfToken
+      }
+    });
+    console.log('Response:', response);
+    if (!response.ok) {
+      const data = await response.json();
+      console.error('Error response:', data);
+      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Response:', data);
+
+    if (data.success) {
+      if (data.data && data.data.reference_no) {
+        sessionStorage.setItem('membershipReference', data.data.reference_no);
+      }
+      // showMessage('success', 'Data saved successfully');
+      return data.data || true; // Return the data object which may contain context
+    } else {
+      throw new Error(data.message || 'Unknown error occurred');
+    }
+
+  } catch (error) {
+    console.error('Error:', error);
+    alert(error);
+    showMessage('danger', error.message);
+    return false;
+  } finally {
+    nextButton.disabled = false;
+    nextButton.textContent = 'Continue';
+  }
+}
+
+// Add these helper functions for showing messages
+function showMessage(type, message) {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+  alertDiv.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
+  
+  const form = document.getElementById('membership-wizard-form');
+  form.insertBefore(alertDiv, form.firstChild);
+  
+  setTimeout(() => {
+    alertDiv.remove();
+  }, 5000);
+}
+
+// Replace the existing navigation handler with:
+document.getElementById(`step1-next`).addEventListener('click', async () => {
+  try {
+    if (validateStep(1)) {
+      console.log('Saving step 1 data...');
+      const saved = await saveStepData(1);
+      console.log('Step 1 save result:', saved);
+      
+      if (saved) {
+        currentStep++;
+        showStep(currentStep);
+      }
+    }
+  } catch (error) {
+    console.error('Navigation error:', error);
+    showMessage('danger', 'An error occurred while saving the form data');
+  }
+});
+
+document.getElementById('step2-next').addEventListener('click', async () => {
+  try {
+    if (validateStep(2)) {
+      console.log('Saving step 2 data...');
+      const mobileInput = document.getElementById('mobile-input');
+      const mobileSecondaryInput = document.getElementById('mobile-secondary-input');
+      
+      // Use intl-tel-input to get full international numbers
+      if (window.intlTelInputGlobals) {
+        const itiPrimary = window.intlTelInputGlobals.getInstance(mobileInput);
+        if (itiPrimary && typeof itiPrimary.getNumber === 'function') {
+          mobileInput.value = itiPrimary.getNumber();
+        }
+
+        const itiSecondary = window.intlTelInputGlobals.getInstance(mobileSecondaryInput);
+        if (itiSecondary && typeof itiSecondary.getNumber === 'function') {
+          mobileSecondaryInput.value = itiSecondary.getNumber();
+        }
+      }
+
+      const saved = await saveStepData(2);
+      console.log('Step 2 save result:', saved);
+      
+      if (saved) {
+        currentStep++;
+        showStep(currentStep);
+      }
+    } else {
+        // Show general error message at the top of the form
+        showMessage('danger', 'Please fill in all required fields correctly');
+    }
+  } catch (error) {
+    console.error('Navigation error:', error);
+    alert(error);
+    showMessage('danger', 'An error occurred while saving the form data');
+  }
+});
+
+document.getElementById(`step3-next`).addEventListener('click', async () => {
+  try {
+    if (validateStep(3)) {
+      console.log('Saving step 3 data...');
+      const saved = await saveStepData(3);
+      console.log('Step 3 save result:', saved);
+      
+      if (saved) {
+        currentStep++;
+        showStep(currentStep);
+        
+        // Display QR code if available in the response
+        if (saved.context && saved.context.qr_img) {
+          displayQRCode(saved.context.qr_img, saved.context.url);
+          // Store QR data in sessionStorage for later use
+          sessionStorage.setItem('qrCodeData', JSON.stringify(saved.context));
+        } else if (saved.context && saved.context.error) {
+          displayPaymentError(saved.context.error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Navigation error:', error);
+    showMessage('danger', 'An error occurred while saving the form data');
+  }
+});
+
+document.getElementById(`step4-next`).addEventListener('click', async () => {
+  try {
+    if (validateStep(4)) {
+      console.log('Saving step 4 data...');
+      const saved = await saveStepData(4);
+      console.log('Step 4 save result:', saved);
+      
+      if (saved) {
+        currentStep++;
+        showStep(currentStep);
+      }
+    }
+  } catch (error) {
+    console.error('Navigation error:', error);
+    showMessage('danger', 'An error occurred while saving the form data');
+  }
+});
+
+// Previous button handlers (no validation needed)
+for (let i = 2; i <= totalSteps; i++) {
+  document.getElementById(`step${i}-prev`)?.addEventListener('click', () => {
+    currentStep--;
+    showStep(currentStep);
+  });
+}
+
+// Regenerate QR code button handler
+document.getElementById('regenerate-qr')?.addEventListener('click', async () => {
+  try {
+    // Show loading state
+    const qrContainer = document.getElementById('qr-code-container');
+    qrContainer.innerHTML = `
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Regenerating QR Code...</span>
+      </div>
+      <p class="mt-2">Regenerating QR Code...</p>
+    `;
+    
+    // Call step 3 API again to regenerate QR code
+    const saved = await saveStepData(3);
+    if (saved && saved.context && saved.context.qr_img) {
+      displayQRCode(saved.context.qr_img, saved.context.url);
+      sessionStorage.setItem('qrCodeData', JSON.stringify(saved.context));
+    } else if (saved && saved.context && saved.context.error) {
+      displayPaymentError(saved.context.error);
+    }
+  } catch (error) {
+    console.error('Error regenerating QR code:', error);
+    displayPaymentError('Failed to regenerate QR code. Please try again.');
+  }
+});
+
+// Update the form submission handler
+document.getElementById('membership-wizard-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  // Validate final step
+  if (!validateStep(totalSteps)) {
+    return;
+  }
+
+  // Clear stored QR code data
+  sessionStorage.removeItem('qrCodeData');
+  
+  // Your existing AJAX submission logic here
+  document.getElementById('registration-success').classList.remove('d-none');
+  showStep(5);
+});
+
+// Helper functions for QR code display
+function displayQRCode(qrImgBase64, paymentUrl) {
+  const qrContainer = document.getElementById('qr-code-container');
+  const paymentLinks = document.getElementById('payment-links');
+  const paymentError = document.getElementById('payment-error');
+  
+  // Hide error if it was showing
+  paymentError.style.display = 'none';
+  
+  // Update QR code container
+  qrContainer.innerHTML = `
+    <img src="data:image/png;base64,${qrImgBase64}" 
+         alt="QR Code" 
+         class="img-fluid" 
+         style="max-width: 300px; border: 1px solid #ddd; border-radius: 8px;">
+    <p class="mt-2 text-muted">Scan this QR code with your mobile banking app</p>
+  `;
+  
+  // Update payment URL
+  if (paymentUrl) {
+    const paymentUrlLink = document.getElementById('payment-url');
+    paymentUrlLink.href = paymentUrl;
+    paymentLinks.style.display = 'block';
+  }
+}
+
+function displayPaymentError(error) {
+  const qrContainer = document.getElementById('qr-code-container');
+  const paymentLinks = document.getElementById('payment-links');
+  const paymentError = document.getElementById('payment-error');
+  const errorMessage = document.getElementById('error-message');
+  
+  // Hide payment links
+  paymentLinks.style.display = 'none';
+  
+  // Show error
+  errorMessage.textContent = typeof error === 'object' ? JSON.stringify(error) : error;
+  paymentError.style.display = 'block';
+  
+  // Update QR container to show error state
+  qrContainer.innerHTML = `
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p class="mt-2">Unable to generate QR code. Please try again later.</p>
+    </div>
+  `;
+}
+
+// Add some CSS for better visual feedback
+const style = document.createElement('style');
+style.textContent = `
+  .form-control.is-invalid,
+  .form-select.is-invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  }
+  .invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+  }
+`;
+document.head.appendChild(style);
+
+showStep(currentStep);
+</script>
+
+  
+{% endblock %}

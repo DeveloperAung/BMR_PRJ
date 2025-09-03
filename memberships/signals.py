@@ -1,3 +1,4 @@
+# memberships/signals.py - FIXED VERSION
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -40,9 +41,19 @@ def _log_status_change(sender, instance: Membership, created: bool, **kwargs):
     if actor and not getattr(actor, "is_authenticated", False):
         actor = None
 
+    # Get the previous status object if it exists
+    old_status = None
+    if prev_id:
+        try:
+            from core.models import Status
+            old_status = Status.objects.get(id=prev_id)
+        except Status.DoesNotExist:
+            old_status = None
+
     WorkflowLog.objects.create(
         membership=instance,
-        workflow_status=instance.workflow_status,
+        old_status=old_status,  # ForeignKey to Status
+        new_status=instance.workflow_status,  # ForeignKey to Status
         action_by=actor,
         reason=instance.reason,  # optional: copy membership.reason if you use it
     )

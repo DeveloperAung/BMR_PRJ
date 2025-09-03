@@ -1,0 +1,43 @@
+{% load static %}
+<html lang="en"> 
+  {% include 'public/partials/header.html' %}
+  <body class="landing-page">
+    <!-- tap on top starts-->
+    <div class="tap-top"><i class="iconly-Arrow-Up icli"></i></div>
+    <!-- tap on tap ends-->
+    <!-- page-wrapper Start-->
+    <div class="landing-page" style="display: block;">
+      <!-- Page Body Start-->
+      <!-- header start-->
+      <header class="landing-header sticky">
+        <div class="container-fluid fluid-space">
+          <div class="row">
+            <div class="col-12">
+              {% include 'public/partials/navbar.html' %}
+            </div>
+          </div>
+        </div>
+      </header>
+      <!-- header end-->
+       <body>
+        <section class="section-py-space landing-page-design mb-3">
+        <div class="page-body mt-4">
+          <div class="container-fluid">
+          {% block content %}
+          {% endblock %}
+          </div>
+        </div>
+      </section>
+       </body>
+      
+      {% include 'public/partials/footer.html' %}
+    </div>
+    
+    {% include 'partials/_js_import.html' %}
+
+    <!-- Plugins JS start-->
+    <script src="{% static '/assets/js/tooltip-init.js' %}"></script>
+    <script src="{% static '/assets/js/animation/wow/wow.min.js' %}"></script>
+    <script src="{% static '/assets/js/landing/landing.js' %}"></script>
+  </body>
+</html>

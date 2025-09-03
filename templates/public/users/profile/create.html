@@ -1,0 +1,85 @@
+{% extends "public/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <a href="{% url 'membership_registration' %}" class="btn btn-primary mb-3">Apply Membership</a>
+
+        <div class="text-center mb-3">
+            <span>or</span>
+        </div>
+        <div class="card height-equal">
+            <div class="card-header border-l-primary border-3 card-no-border pb-0 mb-5">
+                <h2 class="text-center text-success">Complete Your Profile</h2>
+            </div>
+            <div class="card-body">
+                <div class="justify-content-center">
+                    <form method="post" enctype="multipart/form-data" id="profile-form">
+                        {% csrf_token %}
+                        <div class="row">
+                            <!-- Avatar Section (Left) -->
+                            <div class="col-md-4 text-center mb-4 mb-md-0">
+                                <div class="avatar-upload-container">
+                                    <div class="avatar-preview mb-3">
+                                        <img id="avatar-preview" src="{% static 'assets/images/default-avatar.png' %}"
+                                            alt="Profile Preview" class="rounded-circle img-fluid">
+                                    </div>
+                                    <div class="avatar-input">
+                                        <label for="{{ form.avatar.id_for_label }}" class="btn btn-primary">
+                                            Choose Photo
+                                        </label>
+                                        {{ form.avatar }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Profile Form (Right) -->
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">Full Name</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.mobile.id_for_label }}"
+                                                class="form-label">Mobile</label>
+                                            {{ form.mobile }}
+                                            {% if form.mobile.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.mobile.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.mobile_secondary.id_for_label }}"
+                                                class="form-label">Mobile (Secondary)</label>
+                                            {{ form.mobile_secondary }}
+                                            {% if form.mobile_secondary.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.mobile_secondary.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% include 'partials/_js/mobile-input.html' %}
+{% include 'partials/_js/avatar.html' %}
+{% endblock %}

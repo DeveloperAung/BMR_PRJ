@@ -1,14 +1,15 @@
+# memberships/models.py
 from datetime import date
 from decimal import Decimal
-
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models, transaction
 from django.utils import timezone
-
 from core.models import AuditModel, Status
+from core.utils.encryption import encrypt_data, decrypt_data
 import random
 import string
+
 
 class EducationLevel(AuditModel):
     name = models.CharField(max_length=100)
@@ -68,7 +69,7 @@ class PersonalInfo(AuditModel):
         """Calculate age from date_of_birth"""
         today = date.today()
         return today.year - self.date_of_birth.year - (
-            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+                (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
         )
 
 
@@ -83,14 +84,12 @@ class ContactInfo(AuditModel):
         ('long_term_visit_pass', 'Long Term Visit Pass Holder'),
         ('others', 'Others'),
     ]
-    nric_fin_validator = RegexValidator(
-        regex=r'^[STFG]\d{7}[A-Z]$',
-        message='NRIC/FIN must start with S, T, F, or G followed by 7 digits and an alphabet.'
-    )
-    # pass_type_others = models.CharField(blank=True, null=True, max_length=100)
-    nric_fin = models.CharField(max_length=255, validators=[nric_fin_validator])
-    primary_contact = models.CharField(max_length=25, null=True)
-    secondary_contact = models.CharField(max_length=25, null=True, blank=True)
+
+    # Encrypted fields - store encrypted data
+    nric_fin_encrypted = models.TextField()  # Encrypted NRIC/FIN
+    primary_contact_encrypted = models.TextField()  # Encrypted primary contact
+    secondary_contact_encrypted = models.TextField(blank=True, null=True)  # Encrypted secondary contact
+
     residential_status = models.CharField(max_length=255, choices=RESIDENTIAL_STATUS_CHOICES, null=True, blank=True)
     postal_code = models.CharField(max_length=255, null=True, blank=True)
     address = models.TextField(null=True, blank=True)
@@ -101,19 +100,118 @@ class ContactInfo(AuditModel):
     def __str__(self):
         return f"{self.address} ({self.postal_code})"
 
+    # Properties for encryption/decryption
+    @property
+    def nric_fin(self):
+        """Get decrypted NRIC/FIN"""
+        if self.nric_fin_encrypted:
+            return decrypt_data(self.nric_fin_encrypted)
+        return None
+
+    @nric_fin.setter
+    def nric_fin(self, value):
+        """Set encrypted NRIC/FIN"""
+        if value:
+            self.nric_fin_encrypted = encrypt_data(value)
+        else:
+            self.nric_fin_encrypted = ""
+
+    @property
+    def nric_fin_masked(self):
+        """Get masked NRIC/FIN (e.g., S1234***A)"""
+        decrypted = self.nric_fin
+        if decrypted and len(decrypted) >= 4:
+            return decrypted[:4] + '*' * (len(decrypted) - 5) + decrypted[-1]
+        return decrypted
+
+    @property
+    def primary_contact(self):
+        """Get decrypted primary contact"""
+        if self.primary_contact_encrypted:
+            return decrypt_data(self.primary_contact_encrypted)
+        return None
+
+    @primary_contact.setter
+    def primary_contact(self, value):
+        """Set encrypted primary contact"""
+        if value:
+            self.primary_contact_encrypted = encrypt_data(value)
+        else:
+            self.primary_contact_encrypted = ""
+
+    @property
+    def primary_contact_masked(self):
+        """Get masked primary contact (e.g., +659123*****)"""
+        decrypted = self.primary_contact
+        if decrypted and len(decrypted) >= 6:
+            return decrypted[:6] + '*' * (len(decrypted) - 6)
+        return decrypted
+
+    @property
+    def secondary_contact(self):
+        """Get decrypted secondary contact"""
+        if self.secondary_contact_encrypted:
+            return decrypt_data(self.secondary_contact_encrypted)
+        return None
+
+    @secondary_contact.setter
+    def secondary_contact(self, value):
+        """Set encrypted secondary contact"""
+        if value:
+            self.secondary_contact_encrypted = encrypt_data(value)
+        else:
+            self.secondary_contact_encrypted = ""
+
+    @property
+    def secondary_contact_masked(self):
+        """Get masked secondary contact"""
+        decrypted = self.secondary_contact
+        if decrypted and len(decrypted) >= 6:
+            return decrypted[:6] + '*' * (len(decrypted) - 6)
+        return decrypted
+
 
 class WorkInfo(AuditModel):
     occupation = models.CharField(max_length=255, null=True, blank=True)
     company_name = models.CharField(max_length=255, null=True, blank=True)
     company_address = models.TextField(null=True, blank=True)
     company_postal_code = models.CharField(max_length=255, null=True, blank=True)
-    company_contact = models.CharField(max_length=255, null=True, blank=True)
+
+    # Encrypted company contact
+    company_contact_encrypted = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = "Work Info"
 
     def __str__(self):
         return f"{self.occupation} at {self.company_name}"
+
+    @property
+    def company_contact(self):
+        """Get decrypted company contact"""
+        if self.company_contact_encrypted:
+            return decrypt_data(self.company_contact_encrypted)
+        return None
+
+    @company_contact.setter
+    def company_contact(self, value):
+        """Set encrypted company contact"""
+        if value:
+            self.company_contact_encrypted = encrypt_data(value)
+        else:
+            self.company_contact_encrypted = ""
+
+    @property
+    def company_contact_masked(self):
+        """Get masked company contact (e.g., +659***4567)"""
+        decrypted = self.company_contact
+        if decrypted and len(decrypted) >= 8:
+            # Show first 4 and last 4 digits
+            return decrypted[:4] + '*' * (len(decrypted) - 8) + decrypted[-4:]
+        elif decrypted and len(decrypted) >= 6:
+            # Fallback for shorter numbers
+            return decrypted[:3] + '*' * (len(decrypted) - 6) + decrypted[-3:]
+        return decrypted
 
 
 class EducationInfo(AuditModel):
@@ -130,11 +228,7 @@ class EducationInfo(AuditModel):
 
 class Membership(AuditModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
-    reference_no = models.CharField(
-        max_length=12,
-        unique=True,
-        blank=True
-    )
+    reference_no = models.CharField(max_length=12, unique=True, blank=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
     applied_date = models.DateField(auto_now_add=True)
     membership_type = models.ForeignKey(MembershipType, on_delete=models.SET_NULL, blank=True, null=True)
@@ -146,7 +240,14 @@ class Membership(AuditModel):
     education_info = models.OneToOneField(EducationInfo, on_delete=models.SET_NULL, blank=True, null=True)
     workflow_status = models.ForeignKey(Status, on_delete=models.SET_NULL, blank=True, null=True)
     reason = models.TextField(blank=True, null=True)
-    # draft, created, pending_payment, pending_approval, approve, reject, revise, terminated
+
+    # Application completion tracking
+    is_profile_completed = models.BooleanField(default=False)
+    is_contact_completed = models.BooleanField(default=False)
+    is_education_completed = models.BooleanField(default=False)
+    is_work_completed = models.BooleanField(default=False)
+    is_payment_generated = models.BooleanField(default=False)
+    submitted_at = models.DateTimeField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if not self.reference_no:
@@ -167,7 +268,7 @@ class Membership(AuditModel):
             return self.membership_number
 
         year = timezone.now().year
-        membership_type_code = self.membership_type.type_code.upper()[:2] if self.membership_type else "OR"
+        membership_type_code = self.membership_type.name[:2].upper() if self.membership_type else "OR"
 
         # Count existing approved memberships for this year and type
         count = Membership.objects.filter(
@@ -192,11 +293,22 @@ class Membership(AuditModel):
 
         return base_amount
 
+    def can_edit(self):
+        """Check if membership can be edited"""
+        if not self.workflow_status:
+            return True
+        # Allow editing before approved (status code 13)
+        return int(self.workflow_status.status_code) < 13
+
+    def is_all_sections_completed(self):
+        """Check if all required sections are completed"""
+        return (self.is_profile_completed and
+                self.is_contact_completed and
+                self.is_education_completed and
+                self.is_work_completed)
+
     def transition(self, new_status, *, reason: str | None = None, actor=None, save_membership: bool = True):
-        """
-        Transition to a new Status (instance or status_code str).
-        Always writes WorkflowLog with given reason/actor.
-        """
+        """Transition to a new Status"""
         if isinstance(new_status, str):
             new_status = Status.objects.get(status_code=new_status)
 
@@ -245,14 +357,14 @@ class MembershipPayment(AuditModel):
 
     membership = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True, related_name='payments')
     method = models.CharField(max_length=32, choices=METHOD_CHOICES)
-    provider = models.CharField(max_length=32, blank=True, null=True)  # e.g., 'hitpay' for online
+    provider = models.CharField(max_length=32, blank=True, null=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="created")
 
     receipt_no = models.CharField(max_length=15, unique=True, editable=False)
 
     # identifiers
-    external_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)  # provider payment id
-    reference_no = models.CharField(max_length=128, blank=True, null=True)  # bank/cash reference
+    external_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)
+    reference_no = models.CharField(max_length=128, blank=True, null=True)
     description = models.CharField(max_length=255, blank=True, null=True)
 
     # money
@@ -260,14 +372,14 @@ class MembershipPayment(AuditModel):
     currency = models.CharField(max_length=10, default="SGD")
 
     # period / due
-    period_year = models.PositiveIntegerField()  # billing year (e.g., 2025)
+    period_year = models.PositiveIntegerField()
     due_date = models.DateField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
 
     # artifacts
-    qr_code = models.TextField(blank=True, null=True)  # HitPay QR payload
+    qr_code = models.TextField(blank=True, null=True)
     receipt_image = models.ImageField(upload_to="receipts/", blank=True, null=True)
-    metadata = models.JSONField(blank=True, null=True)  # extra
+    metadata = models.JSONField(blank=True, null=True)
     raw_response = models.JSONField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -278,7 +390,7 @@ class MembershipPayment(AuditModel):
     def generate_receipt_no(self):
         year = timezone.now().year % 100
         prefix = f"BMR-{year:02d}-"
-        year_receipts = Membership.objects.filter(
+        year_receipts = MembershipPayment.objects.filter(
             receipt_no__startswith=prefix
         ).count() + 1
         return f"{prefix}{year_receipts:03d}"

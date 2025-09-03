@@ -1,0 +1,155 @@
+{% extends 'public/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'public/users/partials/sidebar.html' %}
+
+        <!-- Content Area -->
+        <div class="col-md-9">
+            <div class="tab-content">
+                <!-- Profile Tab -->
+                <div class="tab-pane fade show active" id="profile" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Membership Details</h5>
+                                {% if membership %}
+                                        <span class="badge bg-{{ user.membership.status|lower }}">
+                                            {{ user.membership.status }}
+                                        </span>
+                                    {% endif %}
+                                <a href="{% url 'profile_edit' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i> Edit Info
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if membership %}
+                                <div class="accordion" id="membershipAccordion">
+                                    <!-- Step 1: Application -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
+                                                Step 1: Application Details
+                                            </button>
+                                        </h2>
+                                        <div id="step1" class="accordion-collapse collapse show" data-bs-parent="#membershipAccordion">
+                                            <div class="accordion-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Application Date</p>
+                                                        <p class="mb-3">{{ user.membership.created_at|date:"M d, Y" }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Membership Type</p>
+                                                        <p class="mb-3">{{ user.membership.type.name }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 2: Document Verification -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
+                                                Step 2: Document Verification
+                                            </button>
+                                        </h2>
+                                        <div id="step2" class="accordion-collapse collapse" data-bs-parent="#membershipAccordion">
+                                            <div class="accordion-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Verification Status</p>
+                                                        <p class="mb-3">
+                                                            <span class="badge bg-{{ user.membership.document_status|lower }}">
+                                                                {{ user.membership.document_status }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Verified Date</p>
+                                                        <p class="mb-3">{{ user.membership.document_verified_at|date:"M d, Y"|default:"Pending" }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 3: Payment -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
+                                                Step 3: Payment Information
+                                            </button>
+                                        </h2>
+                                        <div id="step3" class="accordion-collapse collapse" data-bs-parent="#membershipAccordion">
+                                            <div class="accordion-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Payment Status</p>
+                                                        <p class="mb-3">
+                                                            <span class="badge bg-{{ user.membership.payment_status|lower }}">
+                                                                {{ user.membership.payment_status }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Payment Date</p>
+                                                        <p class="mb-3">{{ user.membership.payment_date|date:"M d, Y"|default:"Pending" }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Step 4: Approval -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step4">
+                                                Step 4: Approval Status
+                                            </button>
+                                        </h2>
+                                        <div id="step4" class="accordion-collapse collapse" data-bs-parent="#membershipAccordion">
+                                            <div class="accordion-body">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Approval Status</p>
+                                                        <p class="mb-3">
+                                                            <span class="badge bg-{{ user.membership.status|lower }}">
+                                                                {{ user.membership.status }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p class="text-muted mb-1">Approval Date</p>
+                                                        <p class="mb-3">{{ user.membership.approved_at|date:"M d, Y"|default:"Pending" }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <div class="mb-4">
+                                        <i class="fas fa-id-card fa-4x text-muted"></i>
+                                    </div>
+                                    <h4 class="text-muted mb-4">No Active Membership</h4>
+                                    <a href="{% url 'membership_registration' %}" class="btn btn-primary">
+                                        <i class="fas fa-plus-circle me-2"></i>Apply for Membership
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

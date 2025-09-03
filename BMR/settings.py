@@ -28,14 +28,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,17 +42,23 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+]
+
+LOCAL_APPS = [
     'core',
     'users',
     'memberships',
+    'authentication',  # Make sure this is included
 ]
 
-INSTALLED_APPS += [
+THIRD_PARTY_APPS = [
     "corsheaders",
     "rest_framework",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
 ]
+
+INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -66,7 +71,15 @@ MIDDLEWARE = [
     "core.middleware.CurrentUserMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Flutter web dev server
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+] + (os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if os.getenv("CORS_ALLOWED_ORIGINS") else [])
+CORS_ALLOW_CREDENTIALS = True
+
 ROOT_URLCONF = 'BMR.urls'
 
 REST_FRAMEWORK = {
@@ -83,29 +96,53 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exception_handlers.enveloped_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "core.pagination.EnvelopedPageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Auth & Users API",
+    "TITLE": "BMR Membership API",
     "DESCRIPTION": "Public & Private users with OTP, JWT, Google Sign-In, and management endpoints.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "ENUM_NAME_OVERRIDES": {},  # keep default
+    # "SWAGGER_UI_SETTINGS": {
+    #     "defaultModelExpandDepth": 2,
+    #     "defaultModelsExpandDepth": 1,
+    #     "displayRequestDuration": True,
+    # },
     "SWAGGER_UI_SETTINGS": {
         "defaultModelExpandDepth": 2,
         "defaultModelsExpandDepth": 1,
         "displayRequestDuration": True,
+        "docExpansion": "none",
+        "filter": True,
+        "showExtensions": True,
+        "showCommonExtensions": True,
     },
+    "TAGS": [
+        {"name": "Auth", "description": "Authentication endpoints"},
+        {"name": "Users", "description": "User management"},
+        {"name": "Memberships", "description": "Membership application system"},
+        {"name": "Payments", "description": "Payment processing"},
+        {"name": "Lookups", "description": "Reference data"},
+    ],
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "ROTATE_REFRESH_TOKENS": False,
     "UPDATE_LAST_LOGIN": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
@@ -123,7 +160,7 @@ HITPAY_CREATE_PAYMENT_URL= os.getenv('HITPAY_CREATE_PAYMENT_URL')
 HITPAY_SALT = os.getenv('HITPAY_SALT')
 HITPAY_API_KEY = os.getenv('HITPAY_API_KEY')
 HITPAY_API_URL = os.getenv('HITPAY_API_URL')
-HITPAY_WEBHOOK_URL = os.getenv('HITPAY_WEBHOOK_URL', 'http://localhost:8000/webhook/')
+HITPAY_WEBHOOK_URL = os.getenv('HITPAY_WEBHOOK_URL', 'http://localhost:8000/api/v1/memberships/payments/webhooks/hitpay/')
 
 #HITPAY testing on local host
 """
@@ -216,20 +253,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+TIME_ZONE = 'Asia/Singapore'  # Set to Singapore timezone
 USE_I18N = True
-
 USE_TZ = True
 
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
-
-CORS_ALLOW_CREDENTIALS = True
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 SITE_ID = 1
 ACCOUNT_EMAIL_VERIFICATION = 'none'
@@ -255,15 +287,93 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     }
 }
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'memberships': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'core.utils.encryption': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'ERROR',  # Only log encryption errors
+            'propagate': False,
+        },
+    },
+}
+
+# Create logs directory
+import os
+log_dir = BASE_DIR / 'logs'
+if not log_dir.exists():
+    log_dir.mkdir(exist_ok=True)
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_REDIRECT_EXEMPT = []
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_PRELOAD = True
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5MB
+FILE_UPLOAD_PERMISSIONS = 0o644
+
+# Cache configuration (optional, for performance)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache' if DEBUG else 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1') if not DEBUG else 'unique-snowflake',
+    }
+}
+
+# Session settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400  # 1 day
+SESSION_SAVE_EVERY_REQUEST = True

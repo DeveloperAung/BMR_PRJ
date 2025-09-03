@@ -1,0 +1,28 @@
+{% extends "public/base.html" %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 400px;">
+    <h2 class="mb-4 text-center">Verify Email</h2>
+    
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    
+    <p class="text-center">Please enter the 4-digit code sent to your email</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <input type="text" class="form-control form-control-lg text-center" 
+                   name="otp" maxlength="4" pattern="\d{4}" required
+                   style="letter-spacing: 0.5em; font-size: 2em;">
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100">Verify</button>
+    </form>
+    
+    <div class="text-center mt-3">
+        <button class="btn btn-link" id="resend-otp">Resend Code</button>
+    </div>
+</div>
+{% endblock %}

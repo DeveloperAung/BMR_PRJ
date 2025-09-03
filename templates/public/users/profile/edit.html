@@ -1,0 +1,159 @@
+{% extends 'public/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+/* .avatar-upload {
+    position: relative;
+    max-width: 205px;
+    margin: 0 auto;
+} */
+
+.avatar-edit {
+    position: absolute;
+    right: 12px;
+    z-index: 1;
+    top: 10px;
+}
+
+.avatar-preview {
+    width: 150px;
+    height: 150px;
+    position: relative;
+    border-radius: 50%;
+    border: 6px solid #f8f9fa;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    margin: 0 auto;
+}
+
+.avatar-preview > div {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Mobile input specific styles */
+.phone-input-container {
+    margin-bottom: 1rem;
+}
+
+.phone-input-container label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.phone-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.phone-input-wrapper .form-control {
+    padding-left: 90px !important;
+    width: 100% !important;
+}
+</style>
+<div class="container py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'public/users/partials/sidebar.html' %}
+
+        <!-- Content Area -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">Edit Profile</h5>
+                        <a href="{% url 'public_user_profile' user.uuid %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i> Back
+                        </a>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Avatar Preview and Upload -->
+                            <div class="col-md-3 text-center mb-4">
+                                <div class="avatar-upload">
+                                    {% if user.profile.avatar %}
+                                        <img id="avatar-preview" src="{{ user.profile.avatar.url }}"
+                                             alt="Profile Picture" 
+                                             class="rounded-circle img-thumbnail mb-3"
+                                             style="width: 150px; height: 150px; object-fit: cover;">
+                                    {% else %}
+                                        <img id="avatar-preview" src="{% static 'assets/images/default-avatar.png' %}"
+                                             alt="Default Profile" 
+                                             class="rounded-circle img-thumbnail mb-3"
+                                             style="width: 150px; height: 150px; object-fit: cover;">
+                                    {% endif %}
+                                    <div class="mt-4">
+                                        <input type='file' name="profile-avatar" id="imageUpload" accept=".png, .jpg, .jpeg" style="display: none;"/>
+                                        <label for="imageUpload" class="btn btn-primary btn-sm">
+                                            <i class="fa fa-upload"></i> Change
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Form Fields -->
+                            <div class="col-md-9">
+                                <div class="row g-3">
+                                    <div class="mb-3">
+                                        <label for="{{ form.first_name.id_for_label }}" class="form-label">Full Name</label>
+                                        {{ form.first_name }}
+                                        {% if form.first_name.errors %}
+                                            <div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.mobile.id_for_label }}" class="form-label">Mobile</label>
+                                                {{ form.mobile }}
+                                                {% if form.mobile.errors %}
+                                                    <div class="invalid-feedback d-block">{{ form.mobile.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.mobile_secondary.id_for_label }}" class="form-label">Mobile (Secondary)</label>
+                                                {{ form.mobile_secondary }}
+                                                {% if form.mobile_secondary.errors %}
+                                                    <div class="invalid-feedback d-block">{{ form.mobile_secondary.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4">
+                            <a href="{% url 'public_user_profile' user.uuid %}" class="btn btn-light me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-upload input[type="file"] {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+</style>
+
+{% include 'partials/_js/mobile-input.html' %}
+{% include 'partials/_js/avatar.html' %}
+{% endblock %}
