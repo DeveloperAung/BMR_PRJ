@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from dashboard.views import dashboard_router
 import json
 
 from core.utils.otp import generate_otp, expiry
@@ -48,8 +49,12 @@ def login_view(request):
             messages.success(request, f'Welcome back, {user.username}!')
 
             # Redirect to dashboard or membership page
-            next_url = request.GET.get('next', reverse('dashboard'))
-            return redirect(next_url)
+            next_url = request.GET.get('next')
+            if next_url:
+                return redirect(next_url)
+            else:
+                # Call dashboard_router to determine appropriate dashboard
+                return dashboard_router(request)
         else:
             messages.error(request, 'Invalid credentials.')
 
@@ -157,10 +162,10 @@ def verify_otp_view(request):
 
 @login_required
 def dashboard_view(request):
-    """Dashboard after login"""
-    return render(request, 'public/dashboard/index.html', {
-        'user': request.user
-    })
+    if request.user.is_staff:
+        return redirect('admin_dashboard')
+    else:
+        return redirect('public_dashboard')
 
 
 @login_required

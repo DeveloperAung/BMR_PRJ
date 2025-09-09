@@ -50,6 +50,7 @@ LOCAL_APPS = [
     'memberships',
     'authentication',
     'association',
+    'dashboard',
 ]
 
 THIRD_PARTY_APPS = [
@@ -261,7 +262,8 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = "/static/"
+STATIC_URL = "static/"
+STATICFILES_DIRS = ["BMR/static",]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

@@ -21,4 +21,9 @@ urlpatterns = [
     path("api/v1/", include(api_v1_patterns)),
 
     path("", include("authentication.urls")),
+    path("dashboard/", include("dashboard.urls")),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
