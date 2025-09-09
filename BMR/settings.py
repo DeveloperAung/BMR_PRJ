@@ -48,11 +48,14 @@ LOCAL_APPS = [
     'core',
     'users',
     'memberships',
-    'authentication',  # Make sure this is included
+    'authentication',
+    'association',
 ]
 
 THIRD_PARTY_APPS = [
     "corsheaders",
+    'social_django',
+    "django_filters",
     "rest_framework",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
@@ -182,7 +185,7 @@ FERNET_KEY = os.getenv('FERNET_KEY')
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR/'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

@@ -1,0 +1,43 @@
+<style>
+    .avatar-upload-container {
+      padding: 20px;
+  }
+  
+  .avatar-preview img {
+      width: 200px;
+      height: 200px;
+      object-fit: cover;
+      border: 2px solid #ddd;
+  }
+  
+  .avatar-input input[type="file"] {
+      display: none;
+  }
+</style>
+
+<script>
+    document.getElementById('id_avatar').addEventListener('change', function(e) {
+      const [file] = e.target.files;
+      if (file) {
+        document.getElementById('avatar-preview').src = URL.createObjectURL(file);
+      }
+    });
+    
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      const fileInput = document.getElementById('imageUpload');
+      if (fileInput) {
+          fileInput.addEventListener('change', function(e) {
+              const [file] = e.target.files;
+              if (file) {
+                  const preview = document.getElementById('avatar-preview');
+                  if (preview) {
+                      preview.src = URL.createObjectURL(file);
+                  }
+              }
+          });
+      }
+  });
+</script>

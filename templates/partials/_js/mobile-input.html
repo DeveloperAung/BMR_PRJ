@@ -1,0 +1,138 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js"></script>
+<style>
+  .iti {
+      width: 100%;
+  }
+  
+  .phone-error {
+      color: #dc3545;
+      font-size: 80%;
+      margin-top: 0.25rem;
+  }
+  .invalid-feedback {
+      display: block;
+  }
+
+  .form-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    }
+</style>
+
+<script>
+  var input1 = document.querySelector("#mobile-input");
+  utilsScript = "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js"
+  if (input1) {
+    window.intlTelInput(input1, {
+      initialCountry: "sg",
+      utilsScript: utilsScript
+    });
+  }
+  var input2 = document.querySelector("#mobile-secondary-input");
+  if (input2) {
+    window.intlTelInput(input2, {
+      initialCountry: "mm",
+      utilsScript: utilsScript
+    });
+  }
+</script>
+
+<script>
+function validatePhoneNumber(input) {
+    if (!input) return true;
+    
+    const iti = window.intlTelInputGlobals.getInstance(input);
+    if (!iti) return true;
+    
+    // Clear previous error message if any
+    const errorDiv = input.parentElement.querySelector('.phone-error');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
+    
+    // Skip validation if empty and not required
+    if (!input.value.trim() && !input.hasAttribute('required')) {
+        return true;
+    }
+
+    // Validate phone number
+    if (!iti.isValidNumber()) {
+        const errorCode = iti.getValidationError();
+        let errorMessage = '';
+        
+        switch (errorCode) {
+            case intlTelInputUtils.validationError.TOO_SHORT:
+                errorMessage = 'Phone number is too short for the selected country';
+                break;
+            case intlTelInputUtils.validationError.TOO_LONG:
+                errorMessage = 'Phone number is too long for the selected country';
+                break;
+            case intlTelInputUtils.validationError.INVALID_COUNTRY_CODE:
+                errorMessage = 'Invalid country code';
+                break;
+            default:
+                errorMessage = 'Invalid phone number format';
+        }
+
+        // Show error message
+        const newErrorDiv = document.createElement('div');
+        newErrorDiv.className = 'phone-error text-danger small mt-1';
+        newErrorDiv.textContent = errorMessage;
+        input.parentElement.appendChild(newErrorDiv);
+        
+        return false;
+    }
+    
+    return true;
+}
+
+// Modify your existing form submit handler
+document.getElementById('profile-form').addEventListener('submit', function(e) {
+    const mobileInput = document.getElementById('mobile-input');
+    const mobileSecondaryInput = document.getElementById('mobile-secondary-input');
+
+    // Validate primary mobile (required)
+    const isPrimaryValid = validatePhoneNumber(mobileInput);
+    // Validate secondary mobile (optional)
+    const isSecondaryValid = validatePhoneNumber(mobileSecondaryInput);
+
+    if (!isPrimaryValid || !isSecondaryValid) {
+        e.preventDefault();
+        return false;
+    }
+
+    if (window.intlTelInputGlobals) {
+        const mobileIti = window.intlTelInputGlobals.getInstance(mobileInput);
+        const mobileSecondaryIti = window.intlTelInputGlobals.getInstance(mobileSecondaryInput);
+
+        if (mobileIti) {
+            mobileInput.value = mobileIti.getNumber(intlTelInputUtils.numberFormat.INTERNATIONAL);
+        }
+
+        if (mobileSecondaryIti && mobileSecondaryInput.value.trim()) {
+            mobileSecondaryInput.value = mobileSecondaryIti.getNumber(intlTelInputUtils.numberFormat.INTERNATIONAL);
+        }
+    }
+});
+
+// Add real-time validation
+['mobile-input', 'mobile-secondary-input'].forEach(inputId => {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.addEventListener('input', function() {
+            validatePhoneNumber(this);
+        });
+        
+        // Validate when country changes
+        const iti = window.intlTelInputGlobals.getInstance(input);
+        if (iti) {
+            input.addEventListener('countrychange', function() {
+                validatePhoneNumber(this);
+            });
+        }
+    }
+});
+</script>
